@@ -1,0 +1,19 @@
+# Ignore any folder named venv or .venv anywhere in the project
+venv/
+.venv/
+env/
+bin/
+lib/
+venv/
+tf-venv/
+.env
+.env.local
+node_modules/
+__pycache__/
+*.pyc
+# Also ignore node_modules for your frontend
+node_modules/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
