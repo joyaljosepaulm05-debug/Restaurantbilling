@@ -79,7 +79,7 @@ export function MemberList({ selectedId, onSelect }: Props) {
           <p className="text-xs text-gray-400 text-center py-6">No members found.</p>
         )}
         {!isLoading && !isError && filtered.map((m) => {
-          const styles  = TIER_STYLES[m.tier];
+          const styles  = TIER_STYLES[m.tier as MemberTier];
 
           const balance = parseFloat(m.balance);
           return (

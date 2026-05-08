@@ -10,6 +10,7 @@ import { TopUpModal,
 import { TIER_STYLES, TIER_LABELS,
          getInitials, formatBalance,
          formatCurrency }    from './utils';
+import type { MemberTier } from '@/types';
 
 type Tab = 'details' | 'statement';
 
@@ -48,7 +49,7 @@ export function MemberDetail({ memberId, onDeselect }: Props) {
     );
   }
 
-  const styles  = TIER_STYLES[member.tier];
+  const styles  = TIER_STYLES[member.tier as MemberTier];
   const balance = parseFloat(member.balance);
 
   return (
@@ -64,7 +65,7 @@ export function MemberDetail({ memberId, onDeselect }: Props) {
             <h1 className="text-base font-medium text-gray-900">{member.full_name}</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles.badge}`}>
-                {TIER_LABELS[member.tier]}
+                {TIER_LABELS[member.tier as MemberTier]}
               </span>
               <span className="text-xs text-gray-400 font-mono">{member.card_number}</span>
             </div>

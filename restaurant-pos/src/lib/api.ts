@@ -1,5 +1,14 @@
 import axios from 'axios'
-
+import type {
+  MenuItem,
+  Member,
+  MemberWithBalance,
+  MemberStatement,
+  CardLookupResponse,
+  CreateMemberPayload,
+  UpdateMemberPayload,
+  TopUpPayload,
+} from '@/types';
 // Base axios instance — all API calls use this
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -200,4 +209,38 @@ export const analyticsApi = {
 
   getMobileDashboard: () =>
     api.get('/analytics/mobile/'),
+}
+
+//----ATTENDANCE
+export const attendanceApi = {
+  // Register a staff face (manager only)
+  registerFace: (userId: number, imageData: string) =>
+    api.post('/attendance/register-face/', {
+      user_id:    userId,
+      image_data: imageData,
+    }),
+
+  // Check in/out — NO JWT needed (face is the auth)
+  verify: (imageData: string, attendanceType: 'CHECK_IN' | 'CHECK_OUT',
+           branchId?: number) =>
+    axios.post(`${process.env.NEXT_PUBLIC_API_URL}/attendance/verify/`, {
+      image_data:      imageData,
+      attendance_type: attendanceType,
+      branch_id:       branchId ?? 1,
+    }),
+
+  // Today's attendance list
+  getToday: (branchId?: number) =>
+    api.get('/attendance/today/', {
+      params: branchId ? { branch_id: branchId } : {}
+    }),
+
+  // Present/absent summary
+  getSummary: (branchId?: number, date?: string) =>
+    api.get('/attendance/summary/', {
+      params: {
+        ...(branchId ? { branch_id: branchId } : {}),
+        ...(date     ? { date }                : {}),
+      }
+    }),
 }

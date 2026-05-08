@@ -4,7 +4,8 @@ tf-venv/
 venv/
 Machine Learning/
 Java/
-
+.vscode/
+Django/
 # Ignore standard junk
 node_modules/
 .next/
