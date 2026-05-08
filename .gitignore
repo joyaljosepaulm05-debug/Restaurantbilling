@@ -1,19 +1,14 @@
-# Ignore any folder named venv or .venv anywhere in the project
-venv/
-.venv/
-env/
-bin/
-lib/
-venv/
+# Ignore the extra folders
+voice-assistant/
 tf-venv/
-.env
-.env.local
-node_modules/
-__pycache__/
-*.pyc
-# Also ignore node_modules for your frontend
-node_modules/
+venv/
+Machine Learning/
+Java/
 
-# Ignore Python cache
+# Ignore standard junk
+node_modules/
+.next/
 __pycache__/
 *.pyc
+.env
+.DS_Store
