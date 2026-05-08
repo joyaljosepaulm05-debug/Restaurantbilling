@@ -2,50 +2,50 @@
 
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCategories, useCreateMenuItem,
          useUpdateMenuItem } from '@/hooks/useInventory'
+import { inventoryApi } from '@/lib/api'
 import { MenuItem } from '@/types'
 
 interface MenuItemFormProps {
   isOpen: boolean
-  item?: MenuItem | null     // null = create mode, MenuItem = edit mode
+  item?: MenuItem | null
   onClose: () => void
 }
 
-export function MenuItemForm({
-  isOpen, item, onClose
-}: MenuItemFormProps) {
-  const isEditing = !!item
+export function MenuItemForm({ isOpen, item, onClose }: MenuItemFormProps) {
+  const isEditing   = !!item
+  const queryClient = useQueryClient()
 
-  const { data: categories = [] }   = useCategories()
-  const createItem                  = useCreateMenuItem()
-  const updateItem                  = useUpdateMenuItem()
+  const { data: categories = [] } = useCategories()
+  const createItem                = useCreateMenuItem()
+  const updateItem                = useUpdateMenuItem()
 
   const [form, setForm] = useState({
-    name:        '',
-    short_code:  '',
-    category:    '',
-    base_price:  '',
-    tax_percent: '5',
-    item_type:   'FOOD',
-    description: '',
-    tags:        '',
+    name:         '',
+    short_code:   '',
+    category:     '',
+    base_price:   '',
+    tax_percent:  '5',
+    item_type:    'FOOD',
+    description:  '',
+    tags:         '',
     is_available: true,
   })
   const [error, setError] = useState('')
 
-  // Populate form when editing
   useEffect(() => {
     if (item) {
       setForm({
-        name:        item.name,
-        short_code:  item.short_code,
-        category:    String(item.category),
-        base_price:  item.base_price,
-        tax_percent: item.tax_percent,
-        item_type:   item.item_type || 'FOOD',
-        description: item.description || '',
-        tags:        (item.tags || []).join(', '),
+        name:         item.name,
+        short_code:   item.short_code,
+        category:     String(item.category),
+        base_price:   item.base_price,
+        tax_percent:  item.tax_percent,
+        item_type:    (item as any).item_type || 'FOOD',
+        description:  (item as any).description || '',
+        tags:         (item.tags || []).join(', '),
         is_available: item.is_available,
       })
     } else {
@@ -59,22 +59,33 @@ export function MenuItemForm({
     setError('')
   }, [item, isOpen])
 
+  const handleCreateCategory = async () => {
+    const name = prompt('Category name?')
+    if (!name?.trim()) return
+    const icon = prompt('Emoji icon? (optional, e.g. 🍚)') || ''
+    try {
+      await inventoryApi.createCategory({
+        name: name.trim(), icon, sort_order: 0
+      })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'categories'] })
+    } catch {
+      alert('Failed to create category.')
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
     const payload = {
-      name:        form.name.trim(),
-      short_code:  form.short_code.trim().toUpperCase(),
-      category:    parseInt(form.category),
-      base_price:  form.base_price,
-      tax_percent: form.tax_percent,
-      item_type:   form.item_type,
-      description: form.description,
-      tags:        form.tags
-                     .split(',')
-                     .map(t => t.trim())
-                     .filter(Boolean),
+      name:         form.name.trim(),
+      short_code:   form.short_code.trim().toUpperCase(),
+      category:     parseInt(form.category),
+      base_price:   form.base_price,
+      tax_percent:  form.tax_percent,
+      item_type:    form.item_type,
+      description:  form.description,
+      tags:         form.tags.split(',').map(t => t.trim()).filter(Boolean),
       is_available: form.is_available,
     }
 
@@ -88,8 +99,8 @@ export function MenuItemForm({
     } catch (err: any) {
       setError(
         err.response?.data?.short_code?.[0] ||
-        err.response?.data?.name?.[0] ||
-        err.response?.data?.detail ||
+        err.response?.data?.name?.[0]       ||
+        err.response?.data?.detail          ||
         'Failed to save item.'
       )
     }
@@ -102,28 +113,31 @@ export function MenuItemForm({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center
                     justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg
-                      shadow-xl overflow-hidden max-h-[90vh]
-                      flex flex-col">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl
+                      overflow-hidden max-h-[90vh] flex flex-col">
 
-        {/* Header */}
+        {/* ── Header ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between p-5
                         border-b border-gray-200 flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900">
             {isEditing ? 'Edit menu item' : 'Add menu item'}
           </h2>
-          <button onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600
-                             p-1 rounded-lg hover:bg-gray-100">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600
+                       p-1 rounded-lg hover:bg-gray-100"
+          >
             <X size={18} />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit}
-              className="p-5 space-y-4 overflow-y-auto flex-1">
+        {/* ── Form ───────────────────────────────────────────── */}
+        <form
+          onSubmit={handleSubmit}
+          className="p-5 space-y-4 overflow-y-auto flex-1"
+        >
 
-          {/* Name + PLU row */}
+          {/* Name + PLU */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium
@@ -133,7 +147,9 @@ export function MenuItemForm({
               <input
                 type="text"
                 value={form.name}
-                onChange={e => setForm(f => ({...f, name: e.target.value}))}
+                onChange={e => setForm(f => ({
+                  ...f, name: e.target.value
+                }))}
                 required
                 placeholder="Chicken Biryani"
                 className="w-full border border-gray-300 rounded-lg
@@ -150,8 +166,7 @@ export function MenuItemForm({
                 type="text"
                 value={form.short_code}
                 onChange={e => setForm(f => ({
-                  ...f,
-                  short_code: e.target.value.toUpperCase()
+                  ...f, short_code: e.target.value.toUpperCase()
                 }))}
                 required
                 maxLength={10}
@@ -167,13 +182,21 @@ export function MenuItemForm({
             </div>
           </div>
 
-          {/* Category + Type row */}
+          {/* Category + Type */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium
-                                text-gray-700 mb-1">
-                Category *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-gray-700">
+                  Category *
+                </label>
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  + New category
+                </button>
+              </div>
               <select
                 value={form.category}
                 onChange={e => setForm(f => ({
@@ -214,7 +237,7 @@ export function MenuItemForm({
             </div>
           </div>
 
-          {/* Price + Tax row */}
+          {/* Price + Tax */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium
@@ -313,11 +336,13 @@ export function MenuItemForm({
               onClick={() => setForm(f => ({
                 ...f, is_available: !f.is_available
               }))}
-              className={`relative w-11 h-6 rounded-full transition-colors
+              className={`relative w-11 h-6 rounded-full
+                          transition-colors
                 ${form.is_available ? 'bg-gray-900' : 'bg-gray-300'}`}
             >
               <div className={`absolute top-1 w-4 h-4 bg-white
-                               rounded-full transition-transform shadow-sm
+                               rounded-full transition-transform
+                               shadow-sm
                 ${form.is_available
                   ? 'translate-x-6'
                   : 'translate-x-1'}`}

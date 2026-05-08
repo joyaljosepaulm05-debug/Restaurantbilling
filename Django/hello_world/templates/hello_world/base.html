@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Restaurant OS</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; }
+        .nav { background: #092e20; color: white; padding: 15px; border-radius: 8px; }
+        .card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+    <span>🍴 My Restaurant Dashboard</span>
+    
+    <span style="float: right;">
+        {% if user.is_authenticated %}
+            <span style="font-size: 0.8em; margin-right: 10px;">User: {{ user.username }}</span>
+            <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" style="background: none; border: none; color: #ffbcbc; cursor: pointer; text-decoration: underline; font-family: inherit;">
+                    Logout
+                </button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}" style="color: white; text-decoration: none; font-size: 0.9em;">Staff Login</a>
+        {% endif %}
+    </span>
+</div>
+<div class="card">
+    <h3>{{ item.name }}</h3>
+    
+    <p>In Stock: {{ item.stock.quantity }}</p>
+    <p><small>Last restocked: {{ item.stock.last_restock_date|date:"d M Y" }}</small></p>
+</div>
+    
+    {% block content %}
+    {% endblock %}
+{% if user.is_authenticated %}
+    <a href="{% url 'add_inventory' %}" style="color: #afffba; margin-right: 15px;">+ Add Stock</a>
+{% endif %}
+    <hr>
+    <footer>© 2026 - Powered by Django on M5 Mac</footer>
+</body>
+</html>

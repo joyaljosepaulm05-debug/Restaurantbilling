@@ -1,0 +1,22 @@
+{% extends "hello_world/base.html" %}
+
+{% block content %}
+    <div class="card">
+        <h1>{{ item.name }}</h1>
+        <p style="color: gray;">Item Number: #{{ item.itemno }}</p>
+        
+        <p style="font-size: 1.5em; color: green;">Price: ₹{{ item.price }}</p>
+        
+        <p>
+            Availability: 
+            {% if item.is_available %} 
+                ✅ In Stock 
+            {% else %} 
+                ❌ Out of Stock 
+            {% endif %}
+        </p>
+        
+        <br>
+        <a href="/">⬅️ Back to Menu</a>
+    </div>
+{% endblock %}

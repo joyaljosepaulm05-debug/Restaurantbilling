@@ -1,0 +1,16 @@
+{% extends "hello_world/base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: auto;">
+    <h2>📥 Add New Inventory Stock</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" style="background: #092e20; color: white; padding: 10px; border-radius: 5px; width: 100%;">
+            Save to Stock
+        </button>
+    </form>
+    <br>
+    <a href="/">Cancel and go back</a>
+</div>
+{% endblock %}
