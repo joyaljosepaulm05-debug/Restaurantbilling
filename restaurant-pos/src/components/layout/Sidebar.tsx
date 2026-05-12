@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/lib/utils'
-
+import { Settings } from 'lucide-react'
 // ── Nav item definition ───────────────────────────────────────
 interface NavItem {
   href:    string
@@ -51,6 +51,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Analytics',
     icon:  <BarChart2 size={18} />,
     roles: ['OWNER'],
+  },
+  {
+  href:  '/admin',
+  label: 'Admin',
+  icon:  <Settings size={18} />,
+  roles: ['OWNER'],              // Owner only
   },
 ]
 

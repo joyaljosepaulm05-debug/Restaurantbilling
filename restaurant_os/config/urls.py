@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/members/',    include('apps.members.urls')), 
     path('api/attendance/',   include('apps.attendance.urls')), 
     path('api/analytics/',   include('apps.analytics.urls')),
+    path('api/admin/',       include('apps.admin_panel.urls')),
 ]

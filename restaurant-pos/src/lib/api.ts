@@ -244,3 +244,50 @@ export const attendanceApi = {
       }
     }),
 }
+export const adminApi = {
+  // Users
+  getUsers: (params?: {
+    role?: string; branch?: string; search?: string
+  }) => api.get('/admin/users/', { params }),
+
+  getUser:  (id: number) =>
+    api.get(`/admin/users/${id}/`),
+
+  createUser: (data: {
+    email: string; full_name: string; role: string;
+    branch?: number; phone?: string
+  }) => api.post('/admin/users/', data),
+
+  updateUser: (id: number, data: any) =>
+    api.patch(`/admin/users/${id}/`, data),
+
+  resetPassword: (id: number) =>
+    api.post(`/admin/users/${id}/reset-password/`),
+
+  // Branches
+  getBranches: () =>
+    api.get('/admin/branches/'),
+
+  getBranch: (id: number) =>
+    api.get(`/admin/branches/${id}/`),
+
+  createBranch: (data: {
+    name: string; address?: string; phone?: string
+  }) => api.post('/admin/branches/', data),
+
+  updateBranch: (id: number, data: any) =>
+    api.patch(`/admin/branches/${id}/`, data),
+
+  // Reports
+  getAuditLog: (params?: {
+    action_type?: string; branch?: string;
+    user?: string; days?: number
+  }) => api.get('/admin/audit-log/', { params }),
+
+  getSalesReport: (params?: {
+    branch?: string; days?: number
+  }) => api.get('/admin/sales-report/', { params }),
+
+  getPermissions: () =>
+    api.get('/admin/permissions/'),
+}

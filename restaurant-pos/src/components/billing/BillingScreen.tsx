@@ -1,69 +1,60 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { PLUInput }      from './PLUInput'
-import { CartTable }     from './CartTable'
-import { CartSummary }   from './CartSummary'
-import { PaymentModal }  from './PaymentModal'
-import { useCartStore }  from '@/store/cartStore'
-import { useAuthStore }  from '@/store/authStore'
-import { billingApi }    from '@/lib/api'
+import { useState, useEffect,
+         useRef, useCallback }  from 'react'
+import { BillingTabs }          from './BillingTabs'
+import { PLUInput }             from './PLUInput'
+import { CartTable }            from './CartTable'
+import { CartSummary }          from './CartSummary'
+import { PaymentModal }         from './PaymentModal'
+import { useTabsStore }         from '@/store/tabsStore'
+import { useAuthStore }         from '@/store/authStore'
+import { useKeyboard }          from '@/hooks/useKeyboard'
+import { billingApi }           from '@/lib/api'
 
 export function BillingScreen() {
-  const { user }                        = useAuthStore()
-  const { items, customerName, tableNumber,
-          setCustomerName, setTableNumber,
-          clearCart, grandTotal,
-          branchId, setBranchId }        = useCartStore()
+  const { user }                       = useAuthStore()
+  const store                          = useTabsStore()
+  const tab                            = store.activeTab()
 
-  const [isPaymentOpen,    setIsPaymentOpen]    = useState(false)
-  const [currentSaleId,    setCurrentSaleId]    = useState<number | null>(null)
-  const [checkoutLoading,  setCheckoutLoading]  = useState(false)
-  const [successMessage,   setSuccessMessage]   = useState('')
-  const [error,            setError]            = useState('')
+  const [isPaymentOpen,   setIsPaymentOpen]   = useState(false)
+  const [currentSaleId,   setCurrentSaleId]   = useState<number | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [successMsg,      setSuccessMsg]      = useState('')
+  const [error,           setError]           = useState('')
 
-  // Set branch from user on mount
+  const pluRef      = useRef<HTMLInputElement>(null)
+  const customerRef = useRef<HTMLInputElement>(null)
+  const tableRef    = useRef<HTMLInputElement>(null)
+
+  // Refocus PLU when tab changes
   useEffect(() => {
-    if (user?.branch_id) setBranchId(user.branch_id)
-  }, [user, setBranchId])
+    setError('')
+    setTimeout(() => pluRef.current?.focus(), 50)
+  }, [tab.id])
 
-  // F12 → checkout shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F12' && items.length > 0) {
-        e.preventDefault()
-        handleCheckout()
-      }
-      if (e.key === 'Escape' && isPaymentOpen) {
-        setIsPaymentOpen(false)
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [items, isPaymentOpen])
-
-  const handleCheckout = async () => {
-    if (items.length === 0) return
+  // ── Checkout ─────────────────────────────────────────────────
+  const handleCheckout = useCallback(async () => {
+    if (tab.items.length === 0 || checkoutLoading) return
     setError('')
     setCheckoutLoading(true)
 
     try {
       const payload: any = {
-        items: items.map(i => ({
+        items: tab.items.map(i => ({
           short_code: i.short_code,
           quantity:   i.quantity,
         })),
-        customer_name: customerName,
-        table_number:  tableNumber,
+        customer_name: tab.customerName,
+        table_number:  tab.tableNumber,
         branch_id:     user?.branch_id ?? 1,
       }
-
-      if (user?.role === 'OWNER' && branchId) {
-        payload.branch_id = branchId
+      if (user?.role === 'OWNER' && user?.branch_id) {
+        payload.branch_id = user.branch_id
       }
 
-      const response  = await billingApi.createSale(payload)
-      const { sale }  = response.data
+      const res    = await billingApi.createSale(payload)
+      const { sale } = res.data
       setCurrentSaleId(sale.id)
       setIsPaymentOpen(true)
 
@@ -75,94 +66,222 @@ export function BillingScreen() {
     } finally {
       setCheckoutLoading(false)
     }
-  }
+  }, [tab, user, checkoutLoading])
 
   const handlePaymentSuccess = (billNumber: string) => {
     setIsPaymentOpen(false)
     setCurrentSaleId(null)
-    setSuccessMessage(`✓ ${billNumber} — Payment successful!`)
-    setTimeout(() => setSuccessMessage(''), 4000)
+    store.clearCart()
+    setSuccessMsg(`✓ ${billNumber} paid`)
+    setTimeout(() => setSuccessMsg(''), 3000)
+    setTimeout(() => pluRef.current?.focus(), 100)
   }
 
-  return (
-    <div className="h-full bg-gray-50 flex flex-col">
+  const handleModalClose = () => {
+    setIsPaymentOpen(false)
+    setTimeout(() => pluRef.current?.focus(), 100)
+  }
 
-      {/* ── Customer + table bar ──────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200
-                      px-6 py-2 flex items-center gap-3
-                      flex-shrink-0">
-        <input
-          type="text"
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          placeholder="Customer name"
-          className="border border-gray-300 rounded-lg px-3 py-1.5
-                     text-sm w-40 focus:outline-none focus:ring-1
-                     focus:ring-gray-900"
-        />
-        <input
-          type="text"
-          value={tableNumber}
-          onChange={(e) => setTableNumber(e.target.value)}
-          placeholder="Table no."
-          className="border border-gray-300 rounded-lg px-3 py-1.5
-                     text-sm w-28 focus:outline-none focus:ring-1
-                     focus:ring-gray-900"
-        />
-        <span className="ml-auto text-xs text-gray-400">
-          F12 to checkout
-        </span>
+  // ── Global keyboard shortcuts ─────────────────────────────────
+  useKeyboard({
+    // F12 → checkout
+    'F12': (e) => {
+      e.preventDefault()
+      if (!isPaymentOpen && tab.items.length > 0) handleCheckout()
+    },
+    // F2 → customer name
+    'F2': (e) => {
+      e.preventDefault()
+      customerRef.current?.focus()
+      customerRef.current?.select()
+    },
+    // F3 → table number
+    'F3': (e) => {
+      e.preventDefault()
+      tableRef.current?.focus()
+      tableRef.current?.select()
+    },
+    // Ctrl+T → new tab
+    't': (e) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      store.addTab()
+      setTimeout(() => pluRef.current?.focus(), 50)
+    },
+    // Ctrl+W → close tab
+    'w': (e) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      store.closeTab(tab.id)
+      setTimeout(() => pluRef.current?.focus(), 50)
+    },
+    // Ctrl+Tab → next tab
+    'Tab': (e) => {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      if (e.shiftKey) store.prevTab()
+      else            store.nextTab()
+      setTimeout(() => pluRef.current?.focus(), 50)
+    },
+    // Ctrl+1..9 → go to tab
+    '1': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(0) } },
+    '2': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(1) } },
+    '3': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(2) } },
+    '4': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(3) } },
+    '5': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(4) } },
+    '6': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(5) } },
+    '7': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(6) } },
+    '8': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(7) } },
+    '9': (e) => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); store.goToTabIndex(8) } },
+    // Esc → close modal or clear
+    'Escape': () => { if (isPaymentOpen) handleModalClose() },
+  }, [tab, isPaymentOpen, handleCheckout, store])
+
+  return (
+    <div className="h-full bg-gray-50 flex flex-col overflow-hidden">
+
+      {/* ── Multi-tab bar ─────────────────────────────────────── */}
+      <BillingTabs />
+
+      {/* ── Customer + table bar ─────────────────────────────── */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2
+                      flex items-center gap-3 flex-shrink-0">
+
+        <div className="flex items-center gap-1.5">
+          <kbd className="text-xs bg-gray-100 text-gray-500 border
+                          border-gray-300 px-1.5 py-0.5 rounded
+                          font-mono leading-none flex-shrink-0">
+            F2
+          </kbd>
+          <input
+            ref={customerRef}
+            type="text"
+            value={tab.customerName}
+            onChange={e => store.setCustomerName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault()
+                pluRef.current?.focus()
+              }
+            }}
+            placeholder="Customer name"
+            className="border border-gray-300 rounded-lg px-3 py-1.5
+                       text-sm w-40 focus:outline-none focus:ring-2
+                       focus:ring-gray-900"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <kbd className="text-xs bg-gray-100 text-gray-500 border
+                          border-gray-300 px-1.5 py-0.5 rounded
+                          font-mono leading-none flex-shrink-0">
+            F3
+          </kbd>
+          <input
+            ref={tableRef}
+            type="text"
+            value={tab.tableNumber}
+            onChange={e => {
+              store.setTableNumber(e.target.value)
+              // auto-update tab label with table number
+              if (e.target.value) {
+                store.setTabLabel(tab.id, `Table ${e.target.value}`)
+              }
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault()
+                pluRef.current?.focus()
+              }
+            }}
+            placeholder="Table no."
+            className="border border-gray-300 rounded-lg px-3 py-1.5
+                       text-sm w-28 focus:outline-none focus:ring-2
+                       focus:ring-gray-900"
+          />
+        </div>
+
+        {/* Shortcut hints */}
+        <div className="ml-auto hidden md:flex items-center gap-2.5">
+          {[
+            ['F2', 'name'], ['F3', 'table'], ['F12', 'pay'],
+            ['↑↓', 'row'], ['+/-', 'qty'], ['Del', 'remove'],
+            ['Ctrl+T', 'new tab'], ['Ctrl+W', 'close'],
+          ].map(([k, d]) => (
+            <div key={k} className="flex items-center gap-1">
+              <kbd className="text-xs bg-gray-100 text-gray-600
+                              border border-gray-300 px-1.5 py-0.5
+                              rounded font-mono leading-none">
+                {k}
+              </kbd>
+              <span className="text-xs text-gray-400">{d}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* ── Main content ─────────────────────────────────────── */}
+      {/* ── Main ─────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Left — Cart */}
-        <div className="flex-1 flex flex-col p-6 overflow-hidden">
+        {/* Left — PLU + Cart */}
+        <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden">
+          <PLUInput
+            inputRef={pluRef}
+            disabled={checkoutLoading}
+            tabId={tab.id}
+          />
 
-          <div className="mb-4">
-            <PLUInput disabled={checkoutLoading} />
-          </div>
-
-          {successMessage && (
-            <div className="mb-3 bg-green-50 border border-green-200
+          {successMsg && (
+            <div className="bg-green-50 border border-green-200
                             text-green-700 rounded-xl px-4 py-2.5
-                            text-sm font-medium">
-              {successMessage}
+                            text-sm font-medium flex-shrink-0">
+              {successMsg}
             </div>
           )}
 
           {error && (
-            <div className="mb-3 bg-red-50 border border-red-200
+            <div className="bg-red-50 border border-red-200
                             text-red-700 rounded-xl px-4 py-2.5
-                            text-sm">
+                            text-sm flex-shrink-0">
               {error}
             </div>
           )}
 
           <div className="flex-1 bg-white rounded-2xl border
-                          border-gray-200 flex flex-col
-                          overflow-hidden p-4">
-            <CartTable />
+                          border-gray-200 overflow-hidden flex flex-col">
+            <CartTable pluInputRef={pluRef} />
           </div>
         </div>
 
         {/* Right — Summary */}
-        <div className="w-80 bg-white border-l border-gray-200
-                        flex flex-col p-6">
+        <div className="w-72 bg-white border-l border-gray-200
+                        flex flex-col p-5 flex-shrink-0">
 
-          <h2 className="text-base font-semibold text-gray-900 mb-4">
-            Order Summary
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Order summary
+            </h2>
+            {tab.tableNumber && (
+              <span className="text-xs bg-gray-100 text-gray-700
+                               px-2 py-0.5 rounded-full font-medium">
+                Table {tab.tableNumber}
+              </span>
+            )}
+          </div>
 
-          {items.length > 0 && (
-            <div className="flex flex-col gap-2 mb-4 flex-1
-                            overflow-auto max-h-48">
-              {items.map(item => (
+          {tab.items.length > 0 ? (
+            <div className="flex-1 overflow-auto space-y-1.5 mb-4">
+              {tab.items.map(item => (
                 <div key={item.short_code}
                      className="flex justify-between text-sm">
-                  <span className="text-gray-600 truncate">
-                    {item.name} ×{item.quantity}
+                  <span className="text-gray-600 truncate flex
+                                   items-center gap-1.5">
+                    <span className="font-mono text-xs bg-gray-100
+                                     text-gray-600 px-1 rounded
+                                     flex-shrink-0">
+                      {item.short_code}
+                    </span>
+                    ×{item.quantity}
                   </span>
                   <span className="text-gray-900 font-medium
                                    ml-2 flex-shrink-0">
@@ -171,19 +290,21 @@ export function BillingScreen() {
                 </div>
               ))}
             </div>
-          )}
-
-          {items.length === 0 && (
+          ) : (
             <div className="flex-1 flex items-center justify-center">
               <p className="text-sm text-gray-400 text-center">
-                No items yet
+                Empty cart<br />
+                <span className="text-xs">Type PLU + Enter</span>
               </p>
             </div>
           )}
 
           <CartSummary
             onCheckout={handleCheckout}
-            onClear={clearCart}
+            onClear={() => {
+              store.clearCart()
+              pluRef.current?.focus()
+            }}
             loading={checkoutLoading}
           />
         </div>
@@ -193,8 +314,9 @@ export function BillingScreen() {
       <PaymentModal
         isOpen={isPaymentOpen}
         saleId={currentSaleId}
-        onClose={() => setIsPaymentOpen(false)}
+        onClose={handleModalClose}
         onSuccess={handlePaymentSuccess}
+        pluRef={pluRef}
       />
     </div>
   )

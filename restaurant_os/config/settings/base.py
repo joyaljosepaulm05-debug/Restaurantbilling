@@ -28,8 +28,8 @@ LOCAL_APPS = [
     'apps.members',
     'apps.attendance', 
     'apps.analytics',
-    # Future: 'apps.inventory', 'apps.billing', etc.
-]
+    'apps.admin_panel',
+    ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

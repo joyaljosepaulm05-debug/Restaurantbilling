@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { inventoryApi } from '@/lib/api'
 import { PLUResult, CartItem } from '@/types'
-import { useCartStore } from '@/store/cartStore'
+import { useTabsStore } from '@/store/tabsStore'
 
 type LookupState = 'idle' | 'searching' | 'found' | 'not_found' | 'error'
 
@@ -11,7 +11,7 @@ export function usePLULookup() {
   const [errorMsg, setErrorMsg]   = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { addItem } = useCartStore()
+  const { addItem } = useTabsStore()
 
   const lookup = useCallback(async (shortCode: string) => {
     const code = shortCode.trim().toUpperCase()
